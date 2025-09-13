@@ -13,9 +13,11 @@ import {
   Star,
   Activity,
   FileText,
-  X
+  X,
+  AlertCircle
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import API from '../api';
 
 const StudentDashboard = ({ user }) => {
   const [stats, setStats] = useState({
@@ -30,98 +32,56 @@ const StudentDashboard = ({ user }) => {
   const [recentActivities, setRecentActivities] = useState([]);
   const [achievements, setAchievements] = useState([]);
   const [progressData, setProgressData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Simulate loading data
-    setTimeout(() => {
-      setStats({
-        totalActivities: 24,
-        verifiedActivities: 18,
-        pendingActivities: 6,
-        totalCredits: 156,
-        gpa: 3.8,
-        rank: 12
-      });
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-      setRecentActivities([
-        {
-          id: 1,
-          title: 'Python Programming Certificate',
-          type: 'Certification',
-          date: '2024-01-15',
-          status: 'verified',
-          credits: 3
-        },
-        {
-          id: 2,
-          title: 'Tech Conference 2024',
-          type: 'Conference',
-          date: '2024-01-10',
-          status: 'verified',
-          credits: 2
-        },
-        {
-          id: 3,
-          title: 'Community Service Project',
-          type: 'Volunteering',
-          date: '2024-01-08',
-          status: 'pending',
-          credits: 1
-        },
-        {
-          id: 4,
-          title: 'Research Paper Publication',
-          type: 'Research',
-          date: '2024-01-05',
-          status: 'verified',
-          credits: 5
-        }
-      ]);
+        // Fetch student stats
+        const statsResponse = await API.get(`/students/${user.id}/stats`);
+        setStats(statsResponse.data);
 
-      setAchievements([
-        {
-          id: 1,
-          title: 'Academic Excellence',
-          description: 'Maintained GPA above 3.5',
-          icon: Trophy,
-          color: '#fbbf24',
-          earned: true
-        },
-        {
-          id: 2,
-          title: 'Research Scholar',
-          description: 'Published 3 research papers',
-          icon: BookOpen,
-          color: '#3b82f6',
-          earned: true
-        },
-        {
-          id: 3,
-          title: 'Community Leader',
-          description: 'Completed 50+ volunteer hours',
-          icon: Users,
-          color: '#10b981',
-          earned: false
-        },
-        {
-          id: 4,
-          title: 'Tech Innovator',
-          description: 'Won 2 hackathons',
-          icon: Star,
-          color: '#8b5cf6',
-          earned: false
-        }
-      ]);
+        // Fetch recent activities
+        const activitiesResponse = await API.get(`/students/${user.id}/activities?limit=4`);
+        setRecentActivities(activitiesResponse.data);
 
-      setProgressData([
-        { month: 'Sep', activities: 4, credits: 12 },
-        { month: 'Oct', activities: 6, credits: 18 },
-        { month: 'Nov', activities: 5, credits: 15 },
-        { month: 'Dec', activities: 7, credits: 21 },
-        { month: 'Jan', activities: 8, credits: 24 }
-      ]);
-    }, 1000);
-  }, []);
+        // Fetch achievements
+        const achievementsResponse = await API.get(`/students/${user.id}/achievements`);
+        setAchievements(achievementsResponse.data);
+
+        // Fetch progress data
+        const progressResponse = await API.get(`/students/${user.id}/progress`);
+        setProgressData(progressResponse.data);
+
+      } catch (err) {
+        console.error('Error fetching dashboard data:', err);
+        setError('Failed to load dashboard data. Please try again.');
+        
+        // Set fallback data on error
+        setStats({
+          totalActivities: 0,
+          verifiedActivities: 0,
+          pendingActivities: 0,
+          totalCredits: 0,
+          gpa: 0,
+          rank: 0
+        });
+        setRecentActivities([]);
+        setAchievements([]);
+        setProgressData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user && user.id) {
+      fetchDashboardData();
+    }
+  }, [user]);
 
   const activityTypeData = [
     { name: 'Certifications', value: 8, color: '#667eea' },
@@ -147,6 +107,39 @@ const StudentDashboard = ({ user }) => {
       default: return Activity;
     }
   };
+
+  if (loading) {
+    return (
+      <div className="dashboard">
+        <div className="main-content">
+          <div className="loading-container">
+            <div className="loading-spinner" />
+            <p>Loading dashboard data...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="dashboard">
+        <div className="main-content">
+          <div className="error-container">
+            <AlertCircle size={48} className="error-icon" />
+            <h3>Error Loading Dashboard</h3>
+            <p>{error}</p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="retry-btn"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard">
@@ -698,6 +691,58 @@ const StudentDashboard = ({ user }) => {
           top: 0.5rem;
           right: 0.5rem;
           color: #10b981;
+        }
+
+        .loading-container,
+        .error-container {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          min-height: 50vh;
+          text-align: center;
+          color: white;
+        }
+
+        .loading-spinner {
+          width: 40px;
+          height: 40px;
+          border: 4px solid rgba(255, 255, 255, 0.3);
+          border-top: 4px solid white;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin-bottom: 1rem;
+        }
+
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        .error-container h3 {
+          font-size: 1.5rem;
+          margin-bottom: 1rem;
+          color: white;
+        }
+
+        .error-container p {
+          margin-bottom: 2rem;
+          opacity: 0.8;
+        }
+
+        .retry-btn {
+          background: rgba(255, 255, 255, 0.2);
+          border: 1px solid rgba(255, 255, 255, 0.3);
+          color: white;
+          padding: 0.75rem 1.5rem;
+          border-radius: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+
+        .retry-btn:hover {
+          background: rgba(255, 255, 255, 0.3);
         }
 
         @media (max-width: 1024px) {

@@ -18,10 +18,12 @@ import {
   Star,
   ExternalLink,
   Copy,
-  Check
+  Check,
+  AlertCircle
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import API from '../api';
 
 const DigitalPortfolio = ({ user }) => {
   const [portfolioData, setPortfolioData] = useState(null);
@@ -29,135 +31,63 @@ const DigitalPortfolio = ({ user }) => {
   const [shareLink, setShareLink] = useState('');
   const [linkCopied, setLinkCopied] = useState(false);
   const [selectedSection, setSelectedSection] = useState('overview');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const portfolioRef = useRef(null);
 
   useEffect(() => {
-    // Simulate loading portfolio data
-    setTimeout(() => {
-      setPortfolioData({
-        personalInfo: {
-          name: user.name,
-          email: 'alex.johnson@university.edu',
-          phone: '+1 (555) 123-4567',
-          location: 'San Francisco, CA',
-          website: 'alexjohnson.dev',
-          linkedin: 'linkedin.com/in/alexjohnson',
-          github: 'github.com/alexjohnson',
-          bio: 'Passionate Computer Science student with a focus on software development and research. Experienced in full-stack development, machine learning, and open-source contributions.'
-        },
-        academicInfo: {
-          degree: 'Bachelor of Science in Computer Science',
-          university: 'University of Technology',
-          gpa: 3.8,
-          graduationYear: '2024',
-          major: 'Computer Science',
-          minor: 'Mathematics'
-        },
-        achievements: [
-          {
-            id: 1,
-            title: 'Dean\'s List',
-            description: 'Maintained GPA above 3.5 for 4 consecutive semesters',
-            date: '2023',
-            type: 'academic',
-            verified: true
-          },
-          {
-            id: 2,
-            title: 'Research Excellence Award',
-            description: 'Outstanding contribution to machine learning research',
-            date: '2023',
-            type: 'research',
-            verified: true
-          },
-          {
-            id: 3,
-            title: 'Hackathon Winner',
-            description: 'First place in University Tech Innovation Challenge',
-            date: '2023',
-            type: 'competition',
-            verified: true
-          },
-          {
-            id: 4,
-            title: 'Community Service Leader',
-            description: 'Organized 5+ community service events',
-            date: '2023',
-            type: 'volunteering',
-            verified: true
-          }
-        ],
-        activities: [
-          {
-            id: 1,
-            title: 'Python Programming Certificate',
-            type: 'certification',
-            organization: 'Python Institute',
-            date: '2024-01-15',
-            credits: 3,
-            description: 'Comprehensive Python programming course covering advanced concepts',
-            verified: true
-          },
-          {
-            id: 2,
-            title: 'Tech Conference 2024',
-            type: 'conference',
-            organization: 'Tech Innovation Summit',
-            date: '2024-01-10',
-            credits: 2,
-            description: 'Presented research on AI applications in healthcare',
-            verified: true
-          },
-          {
-            id: 3,
-            title: 'Research Paper Publication',
-            type: 'research',
-            organization: 'IEEE Computer Society',
-            date: '2024-01-05',
-            credits: 5,
-            description: 'Published paper on machine learning optimization techniques',
-            verified: true
-          },
-          {
-            id: 4,
-            title: 'Community Service Project',
-            type: 'volunteering',
-            organization: 'Local Community Center',
-            date: '2024-01-08',
-            credits: 1,
-            description: 'Organized food drive serving 200+ families',
-            verified: true
-          }
-        ],
-        skills: {
-          technical: ['Python', 'JavaScript', 'React', 'Node.js', 'Machine Learning', 'Data Science', 'Git', 'Docker'],
-          soft: ['Leadership', 'Teamwork', 'Problem Solving', 'Communication', 'Project Management', 'Public Speaking']
-        },
-        projects: [
-          {
-            id: 1,
-            title: 'Smart Student Hub',
-            description: 'Comprehensive student activity tracking platform with React and Node.js',
-            technologies: ['React', 'Node.js', 'MongoDB', 'Express'],
-            github: 'github.com/alexjohnson/smart-student-hub',
-            demo: 'smart-student-hub.vercel.app',
-            status: 'completed'
-          },
-          {
-            id: 2,
-            title: 'AI-Powered Study Assistant',
-            description: 'Machine learning application for personalized study recommendations',
-            technologies: ['Python', 'TensorFlow', 'Flask', 'PostgreSQL'],
-            github: 'github.com/alexjohnson/ai-study-assistant',
-            demo: 'ai-study-assistant.herokuapp.com',
-            status: 'in-progress'
-          }
-        ]
-      });
+    const fetchPortfolioData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-      // Generate shareable link
-      setShareLink(`https://portfolio.smartstudenthub.com/${user.studentId}`);
-    }, 1000);
+        // Fetch portfolio data
+        const response = await API.get(`/students/${user.id}/portfolio`);
+        setPortfolioData(response.data);
+
+        // Generate shareable link
+        setShareLink(`https://portfolio.smartstudenthub.com/${user.studentId || user.id}`);
+
+      } catch (err) {
+        console.error('Error fetching portfolio data:', err);
+        setError('Failed to load portfolio data. Please try again.');
+        
+        // Set fallback data on error
+        setPortfolioData({
+          personalInfo: {
+            name: user.name,
+            email: user.email || '',
+            phone: '',
+            location: '',
+            website: '',
+            linkedin: '',
+            github: '',
+            bio: ''
+          },
+          academicInfo: {
+            degree: '',
+            university: '',
+            gpa: 0,
+            graduationYear: '',
+            major: '',
+            minor: ''
+          },
+          achievements: [],
+          activities: [],
+          skills: {
+            technical: [],
+            soft: []
+          },
+          projects: []
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user && user.id) {
+      fetchPortfolioData();
+    }
   }, [user]);
 
   const generatePDF = async () => {
@@ -234,11 +164,27 @@ const DigitalPortfolio = ({ user }) => {
     }
   };
 
-  if (!portfolioData) {
+  if (loading) {
     return (
       <div className="portfolio-loading">
         <div className="loading-spinner" />
         <p>Generating your portfolio...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="portfolio-loading">
+        <AlertCircle size={48} className="error-icon" />
+        <h3>Error Loading Portfolio</h3>
+        <p>{error}</p>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="retry-btn"
+        >
+          Try Again
+        </button>
       </div>
     );
   }
@@ -666,6 +612,38 @@ const DigitalPortfolio = ({ user }) => {
           justify-content: center;
           min-height: 50vh;
           color: white;
+          text-align: center;
+        }
+
+        .portfolio-loading h3 {
+          font-size: 1.5rem;
+          margin-bottom: 1rem;
+          color: white;
+        }
+
+        .portfolio-loading p {
+          margin-bottom: 2rem;
+          opacity: 0.8;
+        }
+
+        .error-icon {
+          color: #ef4444;
+          margin-bottom: 1rem;
+        }
+
+        .retry-btn {
+          background: rgba(255, 255, 255, 0.2);
+          border: 1px solid rgba(255, 255, 255, 0.3);
+          color: white;
+          padding: 0.75rem 1.5rem;
+          border-radius: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+
+        .retry-btn:hover {
+          background: rgba(255, 255, 255, 0.3);
         }
 
         .loading-spinner {

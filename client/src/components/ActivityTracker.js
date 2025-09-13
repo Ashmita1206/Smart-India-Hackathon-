@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Upload, 
@@ -19,12 +19,16 @@ import {
   Briefcase
 } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
+import API from '../api';
 
 const ActivityTracker = ({ user }) => {
   const [activities, setActivities] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   const [newActivity, setNewActivity] = useState({
     title: '',
     type: 'certification',
@@ -70,6 +74,28 @@ const ActivityTracker = ({ user }) => {
     maxSize: 10 * 1024 * 1024 // 10MB
   });
 
+  // Fetch activities on component mount
+  useEffect(() => {
+    const fetchActivities = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await API.get(`/students/${user.id}/activities`);
+        setActivities(response.data);
+      } catch (err) {
+        console.error('Error fetching activities:', err);
+        setError('Failed to load activities. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user && user.id) {
+      fetchActivities();
+    }
+  }, [user]);
+
   const removeFile = (fileId) => {
     setNewActivity(prev => ({
       ...prev,
@@ -77,28 +103,52 @@ const ActivityTracker = ({ user }) => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
-    const activity = {
-      id: Date.now(),
-      ...newActivity,
-      status: 'pending',
-      submittedAt: new Date().toISOString(),
-      studentId: user.studentId,
-      studentName: user.name
-    };
+    try {
+      setSubmitting(true);
+      
+      // Create FormData for file uploads
+      const formData = new FormData();
+      formData.append('title', newActivity.title);
+      formData.append('type', newActivity.type);
+      formData.append('description', newActivity.description);
+      formData.append('date', newActivity.date);
+      formData.append('credits', newActivity.credits);
+      formData.append('studentId', user.id);
+      
+      // Append files
+      newActivity.files.forEach((fileObj, index) => {
+        formData.append(`files`, fileObj.file);
+      });
 
-    setActivities(prev => [activity, ...prev]);
-    setNewActivity({
-      title: '',
-      type: 'certification',
-      description: '',
-      date: '',
-      credits: 1,
-      files: []
-    });
-    setShowAddModal(false);
+      const response = await API.post('/activities', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      // Add the new activity to the list
+      setActivities(prev => [response.data, ...prev]);
+      
+      // Reset form
+      setNewActivity({
+        title: '',
+        type: 'certification',
+        description: '',
+        date: '',
+        credits: 1,
+        files: []
+      });
+      setShowAddModal(false);
+      
+    } catch (err) {
+      console.error('Error submitting activity:', err);
+      setError('Failed to submit activity. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const filteredActivities = activities.filter(activity => {
@@ -136,9 +186,37 @@ const ActivityTracker = ({ user }) => {
     return activityType ? activityType.color : '#6b7280';
   };
 
+  if (loading) {
+    return (
+      <div className="activity-tracker">
+        <div className="main-content">
+          <div className="loading-container">
+            <div className="loading-spinner" />
+            <p>Loading activities...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="activity-tracker">
       <div className="main-content">
+        {/* Error Banner */}
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="error-banner"
+          >
+            <AlertCircle size={20} />
+            <span>{error}</span>
+            <button onClick={() => setError(null)} className="close-error">
+              <X size={16} />
+            </button>
+          </motion.div>
+        )}
+
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -440,8 +518,19 @@ const ActivityTracker = ({ user }) => {
                     >
                       Cancel
                     </button>
-                    <button type="submit" className="btn-primary">
-                      Submit Activity
+                    <button 
+                      type="submit" 
+                      className="btn-primary"
+                      disabled={submitting}
+                    >
+                      {submitting ? (
+                        <>
+                          <div className="loading-spinner" />
+                          Submitting...
+                        </>
+                      ) : (
+                        'Submit Activity'
+                      )}
                     </button>
                   </div>
                 </form>
@@ -915,6 +1004,67 @@ const ActivityTracker = ({ user }) => {
 
         .btn-secondary:hover {
           background: #e5e7eb;
+        }
+
+        .loading-container {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          min-height: 50vh;
+          text-align: center;
+          color: white;
+        }
+
+        .loading-spinner {
+          width: 20px;
+          height: 20px;
+          border: 2px solid rgba(255, 255, 255, 0.3);
+          border-top: 2px solid white;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin-right: 0.5rem;
+        }
+
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        .error-banner {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          background: rgba(239, 68, 68, 0.1);
+          border: 1px solid rgba(239, 68, 68, 0.3);
+          color: #ef4444;
+          padding: 1rem;
+          border-radius: 12px;
+          margin-bottom: 1rem;
+          backdrop-filter: blur(10px);
+        }
+
+        .error-banner span {
+          flex: 1;
+        }
+
+        .close-error {
+          background: none;
+          border: none;
+          color: #ef4444;
+          cursor: pointer;
+          padding: 0.25rem;
+          border-radius: 4px;
+          transition: background 0.3s ease;
+        }
+
+        .close-error:hover {
+          background: rgba(239, 68, 68, 0.1);
+        }
+
+        .btn-primary:disabled {
+          opacity: 0.7;
+          cursor: not-allowed;
         }
 
         @media (max-width: 768px) {

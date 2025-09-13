@@ -17,7 +17,8 @@ import {
   Star,
   CheckCircle,
   Clock,
-  XCircle
+  XCircle,
+  AlertCircle
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -36,89 +37,96 @@ import {
   Cell,
   Legend
 } from 'recharts';
+import API from '../api';
 
 const AnalyticsReporting = ({ user }) => {
   const [analyticsData, setAnalyticsData] = useState(null);
   const [selectedTimeframe, setSelectedTimeframe] = useState('6months');
   const [selectedDepartment, setSelectedDepartment] = useState('all');
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Simulate loading analytics data
-    setTimeout(() => {
-      setAnalyticsData({
-        overview: {
-          totalStudents: 1250,
-          totalActivities: 3420,
-          verifiedActivities: 2890,
-          pendingActivities: 530,
-          totalCredits: 12850,
-          averageGPA: 3.4,
-          completionRate: 84.5
-        },
-        trends: {
-          monthly: [
-            { month: 'Jul', activities: 280, verified: 240, students: 45 },
-            { month: 'Aug', activities: 320, verified: 280, students: 52 },
-            { month: 'Sep', activities: 380, verified: 320, students: 68 },
-            { month: 'Oct', activities: 420, verified: 360, students: 75 },
-            { month: 'Nov', activities: 450, verified: 380, students: 82 },
-            { month: 'Dec', activities: 480, verified: 410, students: 88 },
-            { month: 'Jan', activities: 520, verified: 450, students: 95 }
-          ],
-          weekly: [
-            { week: 'Week 1', activities: 120, verified: 100 },
-            { week: 'Week 2', activities: 135, verified: 115 },
-            { week: 'Week 3', activities: 145, verified: 125 },
-            { week: 'Week 4', activities: 160, verified: 140 }
-          ]
-        },
-        departments: [
-          { name: 'Computer Science', students: 320, activities: 980, verified: 850, avgGPA: 3.6 },
-          { name: 'Engineering', students: 280, activities: 720, verified: 650, avgGPA: 3.4 },
-          { name: 'Business', students: 250, activities: 680, verified: 580, avgGPA: 3.3 },
-          { name: 'Medicine', students: 200, activities: 520, verified: 480, avgGPA: 3.7 },
-          { name: 'Arts', students: 150, activities: 320, verified: 280, avgGPA: 3.2 },
-          { name: 'Science', students: 180, activities: 400, verified: 350, avgGPA: 3.5 }
-        ],
-        activityTypes: [
-          { name: 'Certifications', count: 850, percentage: 24.9, color: '#667eea' },
-          { name: 'Conferences', count: 680, percentage: 19.9, color: '#764ba2' },
-          { name: 'Research', count: 520, percentage: 15.2, color: '#f093fb' },
-          { name: 'Volunteering', count: 720, percentage: 21.1, color: '#f5576c' },
-          { name: 'Competitions', count: 380, percentage: 11.1, color: '#4ecdc4' },
-          { name: 'Internships', count: 270, percentage: 7.9, color: '#45b7d1' }
-        ],
-        topPerformers: [
-          { name: 'Alex Johnson', department: 'Computer Science', activities: 24, credits: 85, gpa: 3.8, rank: 1 },
-          { name: 'Sarah Wilson', department: 'Engineering', activities: 22, credits: 78, gpa: 3.7, rank: 2 },
-          { name: 'Michael Chen', department: 'Computer Science', activities: 20, credits: 72, gpa: 3.9, rank: 3 },
-          { name: 'Emily Davis', department: 'Business', activities: 19, credits: 68, gpa: 3.6, rank: 4 },
-          { name: 'David Brown', department: 'Medicine', activities: 18, credits: 65, gpa: 3.8, rank: 5 }
-        ],
-        accreditation: {
-          totalHours: 12850,
-          requiredHours: 10000,
-          completionPercentage: 128.5,
-          categories: [
-            { name: 'Academic Excellence', hours: 5200, required: 4000, status: 'exceeded' },
-            { name: 'Research & Innovation', hours: 2800, required: 2000, status: 'exceeded' },
-            { name: 'Community Service', hours: 2100, required: 2000, status: 'met' },
-            { name: 'Professional Development', hours: 2750, required: 2000, status: 'exceeded' }
-          ]
-        }
-      });
-    }, 1000);
-  }, []);
+    const fetchAnalyticsData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const response = await API.get('/analytics', {
+          params: {
+            timeframe: selectedTimeframe,
+            department: selectedDepartment
+          }
+        });
+        
+        setAnalyticsData(response.data);
+
+      } catch (err) {
+        console.error('Error fetching analytics data:', err);
+        setError('Failed to load analytics data. Please try again.');
+        
+        // Set fallback data on error
+        setAnalyticsData({
+          overview: {
+            totalStudents: 0,
+            totalActivities: 0,
+            verifiedActivities: 0,
+            pendingActivities: 0,
+            totalCredits: 0,
+            averageGPA: 0,
+            completionRate: 0
+          },
+          trends: {
+            monthly: [],
+            weekly: []
+          },
+          departments: [],
+          activityTypes: [],
+          topPerformers: [],
+          accreditation: {
+            totalHours: 0,
+            requiredHours: 0,
+            completionPercentage: 0,
+            categories: []
+          }
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAnalyticsData();
+  }, [selectedTimeframe, selectedDepartment]);
 
   const generateReport = async () => {
-    setIsGeneratingReport(true);
-    // Simulate report generation
-    setTimeout(() => {
+    try {
+      setIsGeneratingReport(true);
+      
+      const response = await API.post('/analytics/generate-report', {
+        timeframe: selectedTimeframe,
+        department: selectedDepartment,
+        format: 'pdf'
+      }, {
+        responseType: 'blob'
+      });
+
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `analytics-report-${selectedTimeframe}-${Date.now()}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+    } catch (err) {
+      console.error('Error generating report:', err);
+      setError('Failed to generate report. Please try again.');
+    } finally {
       setIsGeneratingReport(false);
-      // In a real app, this would download a PDF report
-      alert('Report generated successfully!');
-    }, 2000);
+    }
   };
 
   const getStatusColor = (status) => {
@@ -139,11 +147,27 @@ const AnalyticsReporting = ({ user }) => {
     }
   };
 
-  if (!analyticsData) {
+  if (loading) {
     return (
       <div className="analytics-loading">
         <div className="loading-spinner" />
         <p>Loading analytics data...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="analytics-loading">
+        <AlertCircle size={48} className="error-icon" />
+        <h3>Error Loading Analytics</h3>
+        <p>{error}</p>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="retry-btn"
+        >
+          Try Again
+        </button>
       </div>
     );
   }
@@ -637,6 +661,38 @@ const AnalyticsReporting = ({ user }) => {
           justify-content: center;
           min-height: 50vh;
           color: white;
+          text-align: center;
+        }
+
+        .analytics-loading h3 {
+          font-size: 1.5rem;
+          margin-bottom: 1rem;
+          color: white;
+        }
+
+        .analytics-loading p {
+          margin-bottom: 2rem;
+          opacity: 0.8;
+        }
+
+        .error-icon {
+          color: #ef4444;
+          margin-bottom: 1rem;
+        }
+
+        .retry-btn {
+          background: rgba(255, 255, 255, 0.2);
+          border: 1px solid rgba(255, 255, 255, 0.3);
+          color: white;
+          padding: 0.75rem 1.5rem;
+          border-radius: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+
+        .retry-btn:hover {
+          background: rgba(255, 255, 255, 0.3);
         }
 
         .loading-spinner {

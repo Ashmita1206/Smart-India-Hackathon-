@@ -16,9 +16,11 @@ import {
   BarChart3,
   User,
   Mail,
-  Phone
+  Phone,
+  AlertCircle
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import API from '../api';
 
 const FacultyPanel = ({ user }) => {
   const [pendingActivities, setPendingActivities] = useState([]);
@@ -28,6 +30,8 @@ const FacultyPanel = ({ user }) => {
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [stats, setStats] = useState({
     totalStudents: 0,
     pendingApprovals: 0,
@@ -36,153 +40,98 @@ const FacultyPanel = ({ user }) => {
   });
 
   useEffect(() => {
-    // Simulate loading data
-    setTimeout(() => {
-      setPendingActivities([
-        {
-          id: 1,
-          title: 'Python Programming Certificate',
-          type: 'certification',
-          studentId: 'CS2023001',
-          studentName: 'Alex Johnson',
-          studentEmail: 'alex.johnson@university.edu',
-          description: 'Completed Python programming course with distinction',
-          date: '2024-01-15',
-          credits: 3,
-          status: 'pending',
-          submittedAt: '2024-01-16T10:30:00Z',
-          files: [
-            { name: 'python_certificate.pdf', type: 'application/pdf' }
-          ]
-        },
-        {
-          id: 2,
-          title: 'Tech Conference 2024',
-          type: 'conference',
-          studentId: 'CS2023002',
-          studentName: 'Sarah Wilson',
-          studentEmail: 'sarah.wilson@university.edu',
-          description: 'Attended annual technology conference and presented research',
-          date: '2024-01-10',
-          credits: 2,
-          status: 'pending',
-          submittedAt: '2024-01-11T14:20:00Z',
-          files: [
-            { name: 'conference_badge.jpg', type: 'image/jpeg' },
-            { name: 'presentation_slides.pdf', type: 'application/pdf' }
-          ]
-        },
-        {
-          id: 3,
-          title: 'Community Service Project',
-          type: 'volunteering',
-          studentId: 'CS2023003',
-          studentName: 'Michael Chen',
-          studentEmail: 'michael.chen@university.edu',
-          description: 'Organized food drive for local community center',
-          date: '2024-01-08',
-          credits: 1,
-          status: 'pending',
-          submittedAt: '2024-01-09T09:15:00Z',
-          files: [
-            { name: 'volunteer_certificate.pdf', type: 'application/pdf' }
-          ]
-        }
-      ]);
+    const fetchFacultyData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-      setAllActivities([
-        ...pendingActivities,
-        {
-          id: 4,
-          title: 'Research Paper Publication',
-          type: 'research',
-          studentId: 'CS2023001',
-          studentName: 'Alex Johnson',
-          studentEmail: 'alex.johnson@university.edu',
-          description: 'Published research paper in IEEE conference',
-          date: '2024-01-05',
-          credits: 5,
-          status: 'verified',
-          submittedAt: '2024-01-06T16:45:00Z',
-          verifiedAt: '2024-01-07T10:30:00Z',
-          verifiedBy: 'Dr. Sarah Wilson',
-          files: [
-            { name: 'research_paper.pdf', type: 'application/pdf' }
-          ]
-        }
-      ]);
+        // Fetch pending activities
+        const pendingResponse = await API.get('/faculty/pending-activities');
+        setPendingActivities(pendingResponse.data);
 
-      setStudents([
-        {
-          id: 'CS2023001',
-          name: 'Alex Johnson',
-          email: 'alex.johnson@university.edu',
-          department: 'Computer Science',
-          year: 'Senior',
-          totalActivities: 12,
-          verifiedActivities: 10,
-          totalCredits: 45,
-          gpa: 3.8
-        },
-        {
-          id: 'CS2023002',
-          name: 'Sarah Wilson',
-          email: 'sarah.wilson@university.edu',
-          department: 'Computer Science',
-          year: 'Junior',
-          totalActivities: 8,
-          verifiedActivities: 6,
-          totalCredits: 28,
-          gpa: 3.6
-        },
-        {
-          id: 'CS2023003',
-          name: 'Michael Chen',
-          email: 'michael.chen@university.edu',
-          department: 'Computer Science',
-          year: 'Senior',
-          totalActivities: 15,
-          verifiedActivities: 12,
-          totalCredits: 52,
-          gpa: 3.9
-        }
-      ]);
+        // Fetch all activities
+        const allActivitiesResponse = await API.get('/faculty/all-activities');
+        setAllActivities(allActivitiesResponse.data);
 
-      setStats({
-        totalStudents: 3,
-        pendingApprovals: 3,
-        verifiedActivities: 10,
-        totalCredits: 125
+        // Fetch students
+        const studentsResponse = await API.get('/faculty/students');
+        setStudents(studentsResponse.data);
+
+        // Fetch stats
+        const statsResponse = await API.get('/faculty/stats');
+        setStats(statsResponse.data);
+
+      } catch (err) {
+        console.error('Error fetching faculty data:', err);
+        setError('Failed to load faculty data. Please try again.');
+        
+        // Set fallback data on error
+        setPendingActivities([]);
+        setAllActivities([]);
+        setStudents([]);
+        setStats({
+          totalStudents: 0,
+          pendingApprovals: 0,
+          verifiedActivities: 0,
+          totalCredits: 0
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user && user.id) {
+      fetchFacultyData();
+    }
+  }, [user]);
+
+  const handleApprove = async (activityId) => {
+    try {
+      await API.patch(`/activities/${activityId}/approve`, {
+        verifiedBy: user.name,
+        verifiedAt: new Date().toISOString()
       });
-    }, 1000);
-  }, []);
 
-  const handleApprove = (activityId) => {
-    setPendingActivities(prev => 
-      prev.filter(activity => activity.id !== activityId)
-    );
-    setAllActivities(prev => 
-      prev.map(activity => 
-        activity.id === activityId 
-          ? { ...activity, status: 'verified', verifiedAt: new Date().toISOString(), verifiedBy: user.name }
-          : activity
-      )
-    );
-    setShowActivityModal(false);
+      setPendingActivities(prev => 
+        prev.filter(activity => activity.id !== activityId)
+      );
+      setAllActivities(prev => 
+        prev.map(activity => 
+          activity.id === activityId 
+            ? { ...activity, status: 'verified', verifiedAt: new Date().toISOString(), verifiedBy: user.name }
+            : activity
+        )
+      );
+      setShowActivityModal(false);
+    } catch (err) {
+      console.error('Error approving activity:', err);
+      setError('Failed to approve activity. Please try again.');
+    }
   };
 
-  const handleReject = (activityId, reason) => {
-    setPendingActivities(prev => 
-      prev.filter(activity => activity.id !== activityId)
-    );
-    setAllActivities(prev => 
-      prev.map(activity => 
-        activity.id === activityId 
-          ? { ...activity, status: 'rejected', rejectedAt: new Date().toISOString(), rejectedBy: user.name, rejectionReason: reason }
-          : activity
-      )
-    );
-    setShowActivityModal(false);
+  const handleReject = async (activityId, reason) => {
+    try {
+      await API.patch(`/activities/${activityId}/reject`, {
+        rejectedBy: user.name,
+        rejectedAt: new Date().toISOString(),
+        rejectionReason: reason
+      });
+
+      setPendingActivities(prev => 
+        prev.filter(activity => activity.id !== activityId)
+      );
+      setAllActivities(prev => 
+        prev.map(activity => 
+          activity.id === activityId 
+            ? { ...activity, status: 'rejected', rejectedAt: new Date().toISOString(), rejectedBy: user.name, rejectionReason: reason }
+            : activity
+        )
+      );
+      setShowActivityModal(false);
+    } catch (err) {
+      console.error('Error rejecting activity:', err);
+      setError('Failed to reject activity. Please try again.');
+    }
   };
 
   const filteredActivities = allActivities.filter(activity => {
@@ -225,9 +174,37 @@ const FacultyPanel = ({ user }) => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="faculty-panel">
+        <div className="main-content">
+          <div className="loading-container">
+            <div className="loading-spinner" />
+            <p>Loading faculty panel...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="faculty-panel">
       <div className="main-content">
+        {/* Error Banner */}
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="error-banner"
+          >
+            <AlertCircle size={20} />
+            <span>{error}</span>
+            <button onClick={() => setError(null)} className="close-error">
+              <XCircle size={16} />
+            </button>
+          </motion.div>
+        )}
+
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -1256,6 +1233,62 @@ const FacultyPanel = ({ user }) => {
 
         .approve-btn:hover {
           background: #059669;
+        }
+
+        .loading-container {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          min-height: 50vh;
+          text-align: center;
+          color: white;
+        }
+
+        .loading-spinner {
+          width: 40px;
+          height: 40px;
+          border: 4px solid rgba(255, 255, 255, 0.3);
+          border-top: 4px solid white;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin-bottom: 1rem;
+        }
+
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        .error-banner {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          background: rgba(239, 68, 68, 0.1);
+          border: 1px solid rgba(239, 68, 68, 0.3);
+          color: #ef4444;
+          padding: 1rem;
+          border-radius: 12px;
+          margin-bottom: 1rem;
+          backdrop-filter: blur(10px);
+        }
+
+        .error-banner span {
+          flex: 1;
+        }
+
+        .close-error {
+          background: none;
+          border: none;
+          color: #ef4444;
+          cursor: pointer;
+          padding: 0.25rem;
+          border-radius: 4px;
+          transition: background 0.3s ease;
+        }
+
+        .close-error:hover {
+          background: rgba(239, 68, 68, 0.1);
         }
 
         @media (max-width: 1024px) {

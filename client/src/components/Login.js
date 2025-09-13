@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { GraduationCap, User, Lock, Eye, EyeOff } from 'lucide-react';
+import API from "../api";
 
 const Login = ({ onLogin, isLoading, setIsLoading }) => {
   const [formData, setFormData] = useState({
@@ -17,11 +18,12 @@ const Login = ({ onLogin, isLoading, setIsLoading }) => {
       ...prev,
       [name]: value
     }));
-    // Clear error when user starts typing
-    if (errors[name]) {
+    // Clear errors when user starts typing
+    if (errors[name] || errors.general) {
       setErrors(prev => ({
         ...prev,
-        [name]: ''
+        [name]: '',
+        general: ''
       }));
     }
   };
@@ -52,22 +54,22 @@ const Login = ({ onLogin, isLoading, setIsLoading }) => {
     
     setIsLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      const mockUser = {
-        id: '1',
-        name: formData.role === 'student' ? 'Alex Johnson' : 'Dr. Sarah Wilson',
+    try {
+      // Call the login API
+      const response = await API.post('/auth/login', {
         email: formData.email,
-        role: formData.role,
-        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.role === 'student' ? 'Alex Johnson' : 'Dr. Sarah Wilson')}&background=667eea&color=fff`,
-        department: formData.role === 'student' ? 'Computer Science' : 'Faculty of Engineering',
-        studentId: formData.role === 'student' ? 'CS2023001' : null,
-        joinDate: '2023-09-01'
-      };
+        password: formData.password,
+        role: formData.role
+      });
       
-      onLogin(mockUser);
+      // On success, call onLogin with the response data
+      onLogin(response.data.user);
       setIsLoading(false);
-    }, 1500);
+    } catch (error) {
+      // On error, display error message
+      setErrors({ general: 'Invalid email or password' });
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -149,6 +151,8 @@ const Login = ({ onLogin, isLoading, setIsLoading }) => {
             </div>
             {errors.password && <span className="error-message">{errors.password}</span>}
           </div>
+
+          {errors.general && <span className="error-message general-error">{errors.general}</span>}
 
           <motion.button
             type="submit"
@@ -295,6 +299,15 @@ const Login = ({ onLogin, isLoading, setIsLoading }) => {
           font-size: 0.875rem;
           margin-top: 0.25rem;
           display: block;
+        }
+
+        .general-error {
+          text-align: center;
+          margin-bottom: 1rem;
+          background: rgba(239, 68, 68, 0.1);
+          padding: 0.75rem;
+          border-radius: 8px;
+          border: 1px solid rgba(239, 68, 68, 0.2);
         }
 
         .login-button {

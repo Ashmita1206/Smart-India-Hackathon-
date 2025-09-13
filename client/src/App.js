@@ -20,6 +20,7 @@ function App() {
 
   const handleLogout = () => {
     setUser(null);
+    localStorage.removeItem("token");
   };
 
   if (!user) {
