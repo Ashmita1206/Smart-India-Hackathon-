@@ -2,6 +2,12 @@
 
 A comprehensive student activity tracking platform with modern animations, faculty validation, and digital portfolio generation.
 
+## 🚀 Live Demo
+
+- **Frontend (Vercel)**: https://smart-india-hackathon-aln8z5ttl-ashmitagoyal1206-7687s-projects.vercel.app/
+- **Backend (Render)**: [https://smart-india-hackathon-gwnj.onrender.com](https://smart-india-hackathon-gwnj.onrender.com)
+
+---
 ## ✨ Key Features
 
 ### 🎯 Dynamic Student Dashboard
