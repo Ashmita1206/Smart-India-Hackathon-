@@ -1,4 +1,4 @@
-# Smart Student Hub 🎓
+# EduTrack 🎓
 
 A comprehensive student activity tracking platform with modern animations, faculty validation, and digital portfolio generation.
 
@@ -267,9 +267,6 @@ GET /api/analytics/report        # Generate comprehensive report
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
@@ -279,10 +276,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **MongoDB** for flexible data storage
 - **Express.js** for robust API development
 
-## 📞 Support
-
-For support, email support@smartstudenthub.com or create an issue in the repository.
-
 ---
 
-**Built with ❤️ for educational institutions worldwide**
+**Built with ❤️ for Smart India Hackathon 2025**
